@@ -13,7 +13,14 @@ tasks = [{
     "id": 2,
     "title": "Build a Web App",
     "completed": False
-    }]
+    },
+    {
+    "id": 3,
+    "title": "Submit Report!",
+    "completed": False,
+    "due_date": "2021-12-20"
+    }
+    ]
 
 
 @app.route("/")
@@ -24,15 +31,34 @@ def home():
 @app.route("/tasks")
 def get_tasks():
     """
-    Retrieves tasks, optionally filtered by completion status.
-
+    Retrieves tasks, optionally filtered by completion status and/or sorted by a field.
     """
-    status = request.args.get("completed")  # Get the status query parameter
+    status = request.args.get("completed")  # Get the "completed" filter
+    sort_by = request.args.get("sort_by", "id")  # Default sorting field is "id"
+    order = request.args.get("order", "asc")  # Default sorting order is ascending
+
+    # Filter tasks by completion status, if provided
     if status is not None:
-        completed_status = status.lower() == "true"  # Check if status is "true"
+        completed_status = status.lower() == "true"
         filtered_tasks = [task for task in tasks if task["completed"] == completed_status]
-        return {"tasks": filtered_tasks}
-    return {"tasks": tasks}
+    else:
+        filtered_tasks = tasks  # No filtering if "completed" is not specified
+
+    # Validate the sort_by field
+    valid_sort_fields = {"id", "title", "due_date", "completed"}  # Add valid fields here
+    if sort_by not in valid_sort_fields:
+        return {"error": f"Invalid sort_by field: {sort_by}. Valid fields are: {', '.join(valid_sort_fields)}"}, 400
+
+    # Sort tasks by the specified field
+    sorted_tasks = sorted(
+        filtered_tasks,
+        key=lambda x: x.get(sort_by, ""),  # Use the field specified in "sort_by"
+        reverse=(order == "desc")  # Reverse the sorting for descending order
+    )
+
+    return {"tasks": sorted_tasks}
+
+
 
 @app.route("/tasks", methods=["POST"])
 def add_task():
