@@ -4,23 +4,33 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-tasks = [{
-    "id": 1,
-    "title": "Learn Flask",
-    "completed": False
+# Sample tasks data
+tasks = [
+    {
+        "id": 1,
+        "title": "Learn Flask",
+        "completed": False,
+        "priority": "High",
+        "created_at": "2024-12-17T10:00:00Z",
+        "due_date": "2024-12-20",
     },
     {
-    "id": 2,
-    "title": "Build a Web App",
-    "completed": False
+        "id": 2,
+        "title": "Build a Web App",
+        "completed": False,
+        "priority": "Medium",
+        "created_at": "2024-12-17T10:30:00Z",
+        "due_date": None,
     },
     {
-    "id": 3,
-    "title": "Submit Report!",
-    "completed": False,
-    "due_date": "2021-12-20"
+        "id": 3,
+        "title": "Deploy App to Cloud",
+        "completed": False,
+        "priority": "Low",
+        "created_at": "2024-12-17T11:00:00Z",
+        "due_date": "2024-12-25",
     }
-    ]
+]
 
 
 @app.route("/")
@@ -45,7 +55,7 @@ def get_tasks():
         filtered_tasks = tasks  # No filtering if "completed" is not specified
 
     # Validate the sort_by field
-    valid_sort_fields = {"id", "title", "due_date", "completed"}  # Add valid fields here
+    valid_sort_fields = {"id", "title", "due_date", "completed", "priority", "created_at"}
     if sort_by not in valid_sort_fields:
         return {"error": f"Invalid sort_by field: {sort_by}. Valid fields are: {', '.join(valid_sort_fields)}"}, 400
 
@@ -58,8 +68,6 @@ def get_tasks():
 
     return {"tasks": sorted_tasks}
 
-
-
 @app.route("/tasks", methods=["POST"])
 def add_task():
     """
@@ -67,14 +75,27 @@ def add_task():
     """
     task_data = request.json
     try:
-        due_date = task_data.get("due_date")  # Optional due date
+        # Validate due_date if provided
+        due_date = task_data.get("due_date")
         if due_date:
             due_date = datetime.strptime(due_date, "%Y-%m-%d").strftime("%Y-%m-%d")
+
+        # Validate priority
+        priority = task_data.get("priority", "Medium")  # Default to "Medium"
+        if priority not in ["High", "Medium", "Low"]:
+            return {"error": "Invalid priority. Must be 'High', 'Medium', or 'Low'."}, 400
+
+        # Generate created_at timestamp
+        created_at = datetime.utcnow().isoformat() + "Z"
+
+        # Create the new task
         new_task = {
             "id": len(tasks) + 1,
             "title": task_data["title"],
             "completed": False,
-            "due_date": due_date,  # Include the due date
+            "priority": priority,
+            "created_at": created_at,
+            "due_date": due_date,
         }
         tasks.append(new_task)
         return {"message": "Task added successfully!", "task": new_task}, 201
