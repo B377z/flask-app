@@ -46,6 +46,7 @@ def get_tasks():
     status = request.args.get("completed")  # Get the "completed" filter
     sort_by = request.args.get("sort_by", "id")  # Default sorting field is "id"
     order = request.args.get("order", "asc")  # Default sorting order is ascending
+    priority = request.args.get("priority")  # Get the "priority" filter
 
     # Filter tasks by completion status, if provided
     if status is not None:
@@ -54,10 +55,18 @@ def get_tasks():
     else:
         filtered_tasks = tasks  # No filtering if "completed" is not specified
 
+    # Filter by priority if provided
+    if priority:
+        if priority not in ["High", "Medium", "Low"]:
+            return {"error": f"Invalid priority: {priority}. Must be 'High', 'Medium', or 'Low'."}, 400
+        filtered_tasks = [task for task in filtered_tasks if task["priority"] == priority]
+
     # Validate the sort_by field
     valid_sort_fields = {"id", "title", "due_date", "completed", "priority", "created_at"}
-    if sort_by not in valid_sort_fields:
-        return {"error": f"Invalid sort_by field: {sort_by}. Valid fields are: {', '.join(valid_sort_fields)}"}, 400
+    sort_by_fields = sort_by.split(",")  # Support multiple sorting fields
+    for field in sort_by_fields:
+        if field not in valid_sort_fields:
+            return {"error": f"Invalid sort_by field: {field}. Valid fields are: {', '.join(valid_sort_fields)}"}, 400
 
     # Sort tasks by the specified field
     sorted_tasks = sorted(
