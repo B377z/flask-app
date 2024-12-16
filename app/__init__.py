@@ -41,19 +41,23 @@ def home():
 @app.route("/tasks")
 def get_tasks():
     """
-    Retrieves tasks, optionally filtered by completion status and/or sorted by a field.
+    Retrieves tasks with filtering, sorting, and pagination.
     """
-    status = request.args.get("completed")  # Get the "completed" filter
-    sort_by = request.args.get("sort_by", "id")  # Default sorting field is "id"
-    order = request.args.get("order", "asc")  # Default sorting order is ascending
-    priority = request.args.get("priority")  # Get the "priority" filter
+    # Get query parameters
+    status = request.args.get("completed")  # Filter by completion status
+    priority = request.args.get("priority")  # Filter by priority
+    sort_by = request.args.get("sort_by", "id")  # Default sorting field
+    order = request.args.get("order", "asc")  # Default sorting order
+    page = int(request.args.get("page", 1))  # Default to page 1
+    limit = int(request.args.get("limit", 5))  # Default to 5 items per page
 
-    # Filter tasks by completion status, if provided
+    # Start with all tasks
+    filtered_tasks = tasks
+
+    # Filter by completion status if provided
     if status is not None:
         completed_status = status.lower() == "true"
-        filtered_tasks = [task for task in tasks if task["completed"] == completed_status]
-    else:
-        filtered_tasks = tasks  # No filtering if "completed" is not specified
+        filtered_tasks = [task for task in filtered_tasks if task["completed"] == completed_status]
 
     # Filter by priority if provided
     if priority:
@@ -68,14 +72,32 @@ def get_tasks():
         if field not in valid_sort_fields:
             return {"error": f"Invalid sort_by field: {field}. Valid fields are: {', '.join(valid_sort_fields)}"}, 400
 
-    # Sort tasks by the specified field
+    # Sort tasks by multiple fields
     sorted_tasks = sorted(
         filtered_tasks,
-        key=lambda x: x.get(sort_by, ""),  # Use the field specified in "sort_by"
-        reverse=(order == "desc")  # Reverse the sorting for descending order
+        key=lambda x: tuple(x.get(field, "") for field in sort_by_fields),
+        reverse=(order == "desc")
     )
 
-    return {"tasks": sorted_tasks}
+    # Implement pagination
+    start = (page - 1) * limit
+    end = start + limit
+    paginated_tasks = sorted_tasks[start:end]
+
+    # Check if the requested page is out of range
+    if not paginated_tasks and page > 1:
+        return {"error": f"Page {page} is out of range."}, 404
+
+    return {
+        "tasks": paginated_tasks,
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total_tasks": len(filtered_tasks),
+            "total_pages": (len(filtered_tasks) + limit - 1) // limit  # Ceiling division
+        }
+    }
+
 
 @app.route("/tasks", methods=["POST"])
 def add_task():
